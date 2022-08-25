@@ -1,0 +1,7 @@
+{
+  "department": "ECE",
+  "token": "",
+  "mongo_uri": "mongodb://localhost:27017/ece-bot",
+  "client_id": "",
+  "guild_id": ""
+}

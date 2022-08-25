@@ -1,0 +1,22 @@
+{
+  "name": "ece-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@discordjs/rest": "^1.1.0",
+    "discord.js": "^14.3.0",
+    "mongoose": "^6.5.3",
+    "pino": "^7.0.0-rc.9"
+  },
+  "scripts": {
+    "start": "ts-node src/Bot.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'",
+    "register-commands": "ts-node src/deploy-commands.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'",
+    "dev": "yarn run register-commands && ts-node src/Bot.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.9",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.7.4"
+  }
+}
