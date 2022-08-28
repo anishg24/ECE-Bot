@@ -1,15 +1,27 @@
-// noinspection JSDeprecatedSymbols
-
 import {HydratedDocument, Model, model, Query, Schema} from "mongoose";
-import {CategoryChannel, ChannelType, Guild, GuildChannel, NonThreadGuildBasedChannel} from "discord.js";
+import {
+    CategoryChannel,
+    ChannelType,
+    Collection,
+    Guild,
+    GuildChannel,
+    NonThreadGuildBasedChannel,
+    OverwriteResolvable,
+    TextChannel
+} from "discord.js";
 import {department} from "../config.json";
 import {logger} from "../logger";
-import {baseChannels, CourseCategory } from "../commands/guild/Course";
+import {baseChannels, CourseCategory} from "../commands/guild/Course";
+import {create} from "domain";
+import {Channel} from "diagnostics_channel";
 
 interface CourseInterface {
     courseName: string,
     timeCreated: Date,
     categoryId: string,
+    homeworkId: string,
+    announcementsId: string,
+    resourcesId: string,
     links: string[],
 }
 
@@ -18,6 +30,7 @@ type CourseModelQuery = Query<any, HydratedDocument<CourseInterface>, CourseQuer
 
 interface CourseMethods {
     getCategory(): CategoryChannel;
+    getHomeworkChannel(): TextChannel;
     deleteCourse(): boolean;
 }
 
@@ -27,6 +40,7 @@ interface CourseStaticMethods extends CourseModelType {
 
 interface CourseQueryHelpers {
     byCourseName(this: CourseModelQuery, courseName: string): CourseModelQuery;
+    byHomeworkId(this: CourseModelQuery, homeworkId: string): CourseModelQuery;
 }
 
 export const CourseSchema = new Schema<CourseInterface, CourseStaticMethods, CourseMethods, CourseQueryHelpers>({
@@ -42,12 +56,28 @@ export const CourseSchema = new Schema<CourseInterface, CourseStaticMethods, Cou
         required: true,
         unique: true,
     },
+    homeworkId: {
+        type: String,
+        required: true,
+    },
+    announcementsId: {
+        type: String,
+        required: true,
+    },
+    resourcesId: {
+        type: String,
+        required: true,
+    },
     links: {type: [String]}
 });
 
-CourseSchema.query.byCourseName = function(courseName: string): CourseModelQuery {
+CourseSchema.query.byCourseName = function (courseName: string): CourseModelQuery {
     return this.findOne({courseName: courseName}, "categoryId");
 };
+
+CourseSchema.query.byHomeworkId = function (homeworkId: string): CourseModelQuery {
+    return this.findOne({homeworkId: homeworkId}, ["categoryId", "homeworkId"]);
+}
 
 CourseSchema.static('createCourse', async function createCourse(guild: Guild, number: number, reason: string) {
     const course = `${department} ${number}`
@@ -60,19 +90,34 @@ CourseSchema.static('createCourse', async function createCourse(guild: Guild, nu
             reason: reason
         });
 
-        baseChannels.forEach((channel: CourseCategory) => {
-            guild.channels.create({
+
+        const createCourseChannel = async (name: string, permissionOverwrites?: OverwriteResolvable[] |
+            Collection<string, OverwriteResolvable> | undefined) => {
+            return await guild.channels.create({
                 parent: category,
-                name: `${department}-${number}-${channel.baseName}`,
+                name: `${department}-${number}-${name}`,
                 type: ChannelType.GuildText,
                 reason: reason,
-                permissionOverwrites: channel.permissionOverwrites
+                permissionOverwrites: permissionOverwrites ? permissionOverwrites : [],
             });
-        });
+        };
+
+        const courseChannels = {
+            announcements: await createCourseChannel("announcements"),
+            resources: await createCourseChannel("resources"),
+            general: await createCourseChannel("general"),
+            homework: await createCourseChannel("homework"),
+        }
+
+        await courseChannels.homework.setRateLimitPerUser(5);
+        const homeworkId = courseChannels.homework.id;
 
         const categoryDocument = new CourseModel({
             courseName: course,
             categoryId: category.id,
+            homeworkId: courseChannels.homework.id,
+            announcementsId: courseChannels.announcements.id,
+            resourcesId: courseChannels.resources.id,
             timeCreated: new Date(),
             links: []
         });
@@ -90,6 +135,10 @@ CourseSchema.static('createCourse', async function createCourse(guild: Guild, nu
 CourseSchema.method("getCategory", async function getCategory(guild: Guild) {
     return await guild.channels.fetch(this.categoryId);
 });
+
+CourseSchema.method("getHomeworkChannel", async function getHomeworkChannel(guild: Guild) {
+    return await guild.channels.fetch(this.homeworkId);
+})
 
 CourseSchema.method("deleteCourse", async function deleteCourse(guild: Guild, reason: string): Promise<boolean> {
     return guild.channels.fetch(this.categoryId)

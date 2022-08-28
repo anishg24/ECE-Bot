@@ -7,12 +7,13 @@
     "@discordjs/rest": "^1.1.0",
     "discord.js": "^14.3.0",
     "mongoose": "^6.5.3",
+    "nodemon": "^2.0.19",
     "pino": "^7.0.0-rc.9"
   },
   "scripts": {
-    "start": "ts-node src/Bot.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'",
+    "start": "nodemon src/Bot.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'",
     "register-commands": "ts-node src/deploy-commands.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'",
-    "dev": "yarn run register-commands && ts-node src/Bot.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'"
+    "dev": "yarn run register-commands && nodemon src/Bot.ts | pino-pretty -i pid,hostname -t 'yyyy-mm-dd HH:MM:ss'"
   },
   "devDependencies": {
     "@types/node": "^18.7.9",

@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  bot:
+    image: node:18.7.0
+    command: sh -c "yarn install && yarn global add pino-pretty && yarn run start"
+    working_dir: /src
+    volumes:
+      - ./:/src
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "8001:27017"
+    volumes:
+      - mongodb_data_container:/data/db
+
+
+volumes:
+  mongodb_data_container:

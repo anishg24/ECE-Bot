@@ -17,7 +17,8 @@ export const CommandListener: Event = {
             await command.run(interaction);
         } catch (error) {
             logger.error(error);
-            await interaction.reply({content: "There was an error while executing this command!", ephemeral: true})
+            // TODO Provide user feedback that our bot broke. Need to consider .deferReply() when replying with interaction
+            // await interaction.reply({content: "There was an error while executing this command!", ephemeral: true})
         }
     }
 }

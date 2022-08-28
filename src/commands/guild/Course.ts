@@ -1,8 +1,6 @@
 import {
-    CategoryChannel,
     ChannelType,
     ChatInputCommandInteraction,
-    Guild,
     PermissionOverwrites,
     SlashCommandBuilder,
 } from "discord.js";
@@ -99,11 +97,12 @@ export const Course: Command = {
             }
 
 
-            category.deleteCourse(guild, category.categoryId, reason)
+            category.deleteCourse(guild, reason)
                 .then(async (isDeleted: boolean) => {
                     if (isDeleted) {
-                        logger.warn(`${user.username} deleted the '${course}' course in ${guild.name}`);
-                        await interaction.editReply(`Successfully deleted ${course}!`);
+                        logger.warn(`${user.username} has deleted the '${course}' course in ${guild.name}`);
+                        interaction.editReply(`Successfully deleted ${course}!`)
+                            .catch((err) => {});
                     } else {
                         await interaction.editReply(`There was an issue deleting ${course}`);
                     }

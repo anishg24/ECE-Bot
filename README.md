@@ -14,9 +14,11 @@ This bot should be able to:
 - [x] Create a category and several channels for each course
 - [ ] Do the above automatically
 - [ ] Communicate with users to automatically assign roles
+  - Perhaps through Canvas API Tokens
 - [ ] Assign a "class leader" who can control aspects of their class' channels
 - [ ] Provide a unique class wiki that stores important links (like Canvas page, Syllabus, etc.)
-- [ ] Automatically convert homework questions to threads
+- [x] Automatically convert homework questions to threads
+- [ ] Generate `.ics` files containing the schedule for a certain class
 - [ ] Be generic enough to easily deploy to any department (like CSE or MATH)
 
 And more, tbd!

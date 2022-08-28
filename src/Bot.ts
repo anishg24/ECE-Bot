@@ -5,9 +5,14 @@ import {Event, Events} from "./events/Events";
 import {logger} from "./logger";
 import mongoose from "mongoose";
 
-const client: Client = new Client({intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]});
+const client: Client = new Client({intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages
+    ]});
+
 mongoose.connect(mongo_uri)
-    .then()
+    .then(() => logger.info("Connected to MongoDB"))
     .catch(err => logger.error(err));
 
 for (const event of Events) {
