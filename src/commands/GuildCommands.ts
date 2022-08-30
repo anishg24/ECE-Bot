@@ -1,10 +1,12 @@
 import {Command} from "./Command";
 import {Server} from "./guild/Server";
-import {Course} from "./guild/Course";
+import {CourseAdmin} from "./guild/CourseAdmin";
+import { Course } from "./guild/Course";
 
 export const GuildCommands: Command[] = [
     Server,
-    Course
+    CourseAdmin,
+    Course,
 ];
 
 export function getGuildCommand(commandName: String): Command | undefined {

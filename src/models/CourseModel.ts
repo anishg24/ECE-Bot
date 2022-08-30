@@ -4,16 +4,11 @@ import {
     ChannelType,
     Collection,
     Guild,
-    GuildChannel,
-    NonThreadGuildBasedChannel,
-    OverwriteResolvable,
+    OverwriteResolvable, PermissionsBitField, Role,
     TextChannel
 } from "discord.js";
 import {department} from "../config.json";
 import {logger} from "../logger";
-import {baseChannels, CourseCategory} from "../commands/guild/Course";
-import {create} from "domain";
-import {Channel} from "diagnostics_channel";
 
 interface CourseInterface {
     courseName: string,
@@ -22,6 +17,10 @@ interface CourseInterface {
     homeworkId: string,
     announcementsId: string,
     resourcesId: string,
+    generalId: string,
+    generalRoleId: string,
+    leaderRoleId: string,
+    leaderId: string,
     links: string[],
 }
 
@@ -30,7 +29,9 @@ type CourseModelQuery = Query<any, HydratedDocument<CourseInterface>, CourseQuer
 
 interface CourseMethods {
     getCategory(): CategoryChannel;
+
     getHomeworkChannel(): TextChannel;
+
     deleteCourse(): boolean;
 }
 
@@ -40,6 +41,7 @@ interface CourseStaticMethods extends CourseModelType {
 
 interface CourseQueryHelpers {
     byCourseName(this: CourseModelQuery, courseName: string): CourseModelQuery;
+
     byHomeworkId(this: CourseModelQuery, homeworkId: string): CourseModelQuery;
 }
 
@@ -68,11 +70,26 @@ export const CourseSchema = new Schema<CourseInterface, CourseStaticMethods, Cou
         type: String,
         required: true,
     },
+    generalId: {
+        type: String,
+        required: true,
+    },
+    generalRoleId: {
+        type: String,
+        required: true
+    },
+    leaderRoleId: {
+        type: String,
+        required: true
+    },
+    leaderId: {
+        type: String
+    },
     links: {type: [String]}
 });
 
 CourseSchema.query.byCourseName = function (courseName: string): CourseModelQuery {
-    return this.findOne({courseName: courseName}, "categoryId");
+    return this.findOne({courseName: courseName}, ["categoryId", "generalRoleId", "leaderRoleId", "generalId", "leaderId"]);
 };
 
 CourseSchema.query.byHomeworkId = function (homeworkId: string): CourseModelQuery {
@@ -84,12 +101,35 @@ CourseSchema.static('createCourse', async function createCourse(guild: Guild, nu
     const cat = await CourseModel.find().byCourseName(course);
 
     if (cat === null) {
-        const category = await guild.channels.create({
+        const generalRole = await guild.roles.create({
             name: course,
-            type: ChannelType.GuildCategory,
-            reason: reason
         });
 
+        const leaderRole = await guild.roles.create({
+            name: `${course} Leader`,
+            color: "Yellow",
+        })
+
+
+        const category: CategoryChannel = await guild.channels.create({
+            name: course,
+            type: ChannelType.GuildCategory,
+            reason: reason,
+            permissionOverwrites: [
+                {
+                    id: guild.roles.everyone.id,
+                    deny: [PermissionsBitField.Flags.ViewChannel],
+                },
+                {
+                    id: generalRole.id,
+                    allow: [PermissionsBitField.Flags.ViewChannel],
+                },
+                {
+                    id: leaderRole.id,
+                    allow: [PermissionsBitField.Flags.ViewChannel]
+                }
+            ]
+        });
 
         const createCourseChannel = async (name: string, permissionOverwrites?: OverwriteResolvable[] |
             Collection<string, OverwriteResolvable> | undefined) => {
@@ -103,14 +143,31 @@ CourseSchema.static('createCourse', async function createCourse(guild: Guild, nu
         };
 
         const courseChannels = {
-            announcements: await createCourseChannel("announcements"),
+            announcements: await createCourseChannel("announcements", [
+                {
+                    id: guild.roles.everyone.id,
+                    deny: [PermissionsBitField.Flags.ViewChannel],
+                },
+                {
+                    id: generalRole.id,
+                    allow: [PermissionsBitField.Flags.ViewChannel],
+                    deny: [PermissionsBitField.Flags.SendMessages]
+                },
+                {
+                    id: leaderRole.id,
+                    allow: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel]
+                }
+            ]),
             resources: await createCourseChannel("resources"),
             general: await createCourseChannel("general"),
             homework: await createCourseChannel("homework"),
         }
 
         await courseChannels.homework.setRateLimitPerUser(5);
-        const homeworkId = courseChannels.homework.id;
+
+        await courseChannels.general.send("This course needs a leader. If you think you are up to the challenge, then " +
+            "type \`/course leader\`. More information about how to be an effective course leader will be sent to you " +
+            "in the DMs!");
 
         const categoryDocument = new CourseModel({
             courseName: course,
@@ -118,6 +175,9 @@ CourseSchema.static('createCourse', async function createCourse(guild: Guild, nu
             homeworkId: courseChannels.homework.id,
             announcementsId: courseChannels.announcements.id,
             resourcesId: courseChannels.resources.id,
+            generalId: courseChannels.general.id,
+            generalRoleId: generalRole.id,
+            leaderRoleId: leaderRole.id,
             timeCreated: new Date(),
             links: []
         });
@@ -142,14 +202,25 @@ CourseSchema.method("getHomeworkChannel", async function getHomeworkChannel(guil
 
 CourseSchema.method("deleteCourse", async function deleteCourse(guild: Guild, reason: string): Promise<boolean> {
     return guild.channels.fetch(this.categoryId)
-        .then((category) => {
+        .then(async (category) => {
             if (category === null) return false;
             if (category instanceof CategoryChannel) {
                 this.remove()
                 category.children.cache.forEach((channel) => {
                     channel.delete(reason);
                 });
-                category.delete(reason);
+
+                await category.delete(reason);
+
+                const deleteRole = async (roleId: string) => {
+                    const role = await guild.roles.fetch(roleId);
+                    if (role === null) return;
+                    await role.delete(reason);
+                };
+
+                await deleteRole(this.generalRoleId);
+                await deleteRole(this.leaderRoleId);
+
                 return true;
             } else {
                 return false;

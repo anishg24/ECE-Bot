@@ -1,15 +1,16 @@
-import {ChatInputCommandInteraction, Client, Collection, GatewayIntentBits, Interaction} from 'discord.js';
+import {Client, GatewayIntentBits} from 'discord.js';
 import {mongo_uri, token} from './config.json';
-import {getCommand} from "./commands/Command";
-import {Event, Events} from "./events/Events";
+import {Events} from "./events/Events";
 import {logger} from "./logger";
 import mongoose from "mongoose";
 
-const client: Client = new Client({intents: [
+const client: Client = new Client({
+    intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages
-    ]});
+    ]
+});
 
 mongoose.connect(mongo_uri)
     .then(() => logger.info("Connected to MongoDB"))
@@ -26,25 +27,6 @@ for (const event of Events) {
         client.on(event.name, (...args) => event.run(...args));
     }
 }
-
-// client.once('ready', (client: Client): void => {
-//     console.log("Ready!");
-// });
-//
-// client.on("interactionCreate", async (interaction: Interaction): Promise<void> => {
-//     if (!interaction.isChatInputCommand()) return;
-//
-//     const command = getCommand(interaction.commandName);
-//
-//     if (!command) return;
-//
-//     try {
-//         await command.run(interaction);
-//     } catch (error) {
-//         console.error(error);
-//         await interaction.reply({content: "There was an error while executing this command!", ephemeral: true})
-//     }
-// });
 
 client.login(token).then();
 
